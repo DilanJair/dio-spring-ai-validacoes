@@ -1,159 +1,106 @@
-# DIO Spring Boot - Final Project 05: Spring AI (budgeting)
+# API de orçamento com Spring AI
 
-## Evolução implementada
+Projeto do bootcamp DIO que evolui a API de orçamento apresentada pelo expert Poiani.
+A aplicação recebe comandos de voz, transcreve o áudio, usa ferramentas de IA para registrar ou consultar transações e gera uma resposta em áudio.
 
-Esta versão acrescenta validação antes do registro de uma transação. O caso de uso
-`PersistTransactionUseCase` é utilizado pelo endpoint REST e está registrado como
-ferramenta do assistente de IA. Ele exige uma descrição preenchida, um valor
-positivo em centavos e uma categoria informada. Dados inválidos geram uma exceção
-antes de chamar o repositório.
+## Melhoria implementada
 
-A entrada e a persistência usam centavos inteiros (long). A saída do caso de uso
-e a resposta REST usam reais (BigDecimal). Por exemplo, um POST com
-`"amount": 3590` grava 3590 centavos e retorna `"amount": 35.90` no JSON.
+As validações ficam em `PersistTransactionUseCase`, compartilhado pelo endpoint REST e pela ferramenta de IA:
 
-No REST, `ApiExceptionHandler` converte apenas InvalidTransactionException em HTTP 400 com uma resposta
-`ProblemDetail`. Por exemplo, um valor igual a zero retorna o detalhe
-`O valor deve ser maior que zero.`
+- Dados da transação devem estar presentes.
+- A descrição deve estar preenchida.
+- O valor deve ser maior que zero.
+- A categoria deve estar informada.
 
-## Testar a melhoria gratuitamente
+Dados inválidos são rejeitados antes de chamar o repositório. No REST, `InvalidTransactionException` é convertida em HTTP 400 com `ProblemDetail`.
 
-Use o JDK 25. No PowerShell, abra esta pasta e execute os testes que chamam o caso
-de uso e o controller com dependências simuladas.
+Também foi corrigida a conversão monetária: entrada e persistência usam `long` em centavos; a saída usa `BigDecimal` em reais. Por exemplo, `3590` centavos resultam em `35.90` reais.
+
+## Tecnologias
+
+- Java 25, Spring Boot 4.0.5 e Spring AI 2.0.0-M4.
+- Spring Web, Spring Data JPA e MySQL 9.6 com Docker Compose.
+- Gradle Wrapper 9.4.1 e Lombok.
+- JUnit, Mockito e MockMvc.
+
+## Testar a melhoria sem banco ou API de IA
+
+É necessário ter o JDK 25. Abra o PowerShell na pasta `05-spring-ai` e execute:
 
 ```powershell
 .\gradlew.bat test --tests '*PersistTransactionUseCaseTest' --tests '*TransactionControllerTest'
 ```
 
-Os testes verificam registros válidos, descrições vazias, valores zero ou
-negativos, categorias ausentes, entrada ausente e respostas HTTP 201 e 400.
-Nos casos inválidos, verificam também que o repositório recebeu zero chamadas.
-O repositório e os componentes de IA são mocks do Mockito. O MockMvc exercita o
-mapeamento HTTP e a conversão de JSON diretamente no teste Java. Ele é configurado
-em modo standalone, com registro manual de ApiExceptionHandler, sem carregar
-o contexto completo do Spring.
+O Gradle baixa as dependências na primeira execução. Esses testes usam mocks e não precisam de MySQL, chave da OpenAI ou modelo local.
 
-O arquivo `src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker`
-configura mocks de interfaces por proxies Java para executar os testes em
-ambientes onde a instalação dinâmica de um agente na JVM está restrita.
+São verificados dados válidos e inválidos, ausência de chamadas ao repositório nos casos rejeitados, respostas HTTP e precisão monetária. O MockMvc usa o controller real com dependências simuladas e registro manual do handler, sem carregar a aplicação completa.
 
-Essa execução usa JUnit e Mockito com as dependências baixadas pelo Gradle. Ela
-funciona sem banco iniciado, credencial da OpenAI ou modelo de IA instalado.
+Na última revisão da versão publicada, a suíte completa, executada sem `OPENAI_API_KEY`, registrou:
 
-Para executar toda a suíte com as integrações externas desabilitadas, use um
-terminal sem a variável `OPENAI_API_KEY` configurada e rode
-`.\gradlew.bat test`. Os testes `OpenAi*IT`, `ToolCallingIT` e
-`BudgetingApplicationTests` usam `@EnabledIfEnvironmentVariable` e ficam
-ignorados nessa situação. O último carrega a aplicação completa e requer o banco
-e a configuração de IA da base.
+- **25 testes aprovados:** 13 do caso de uso e 12 do controller.
+- **Seis registros de integração ignorados**, por dependerem da configuração externa.
+- **Nenhuma falha.**
 
-O relatório fica em `build/reports/tests/test/index.html`. No PowerShell, abra-o
-com `Start-Process .\build\reports\tests\test\index.html`.
+O relatório da sua execução fica em `build/reports/tests/test/index.html`.
 
-Na execução desta correção com JDK 25, Gradle 9.4.1 e --rerun-tasks, os 25 casos
-selecionados passaram (13 do caso de uso e 12 do controller). Eles incluem a
-conversão para reais, a precisão de valores grandes e a propagação de falhas do
-repositório. Na verificação anterior, os 21 casos do recorte passaram e uma
-execução da suíte completa registrou seis testes de integração ignorados por
-ausência de `OPENAI_API_KEY`. O relatório gerado na sua máquina
-mostra os resultados da sua execução.
+## Executar a aplicação completa
 
-## Escopo da verificação e aprendizado
+Este modo requer JDK 25, Docker em execução com Docker Compose e uma chave própria da API da OpenAI.
 
-A validação da melhoria pode ser reproduzida pelos testes automatizados acima.
-A transcrição real de áudio, a seleção de ferramentas por um modelo real, a
-geração de voz e o fluxo com o MySQL precisam de verificação de integração à
-parte. Os mocks permitem controlar as dependências para conferir as regras
-Java e as respostas HTTP.
+Na pasta `05-spring-ai`, execute no PowerShell:
 
-O aprendizado desta evolução envolve centralizar a regra no caso de uso,
-transformar erros de entrada em respostas HTTP adequadas e usar testes para
-comprovar que uma operação inválida é rejeitada antes da persistência.
-
-O projeto-base foi desenvolvido pelo expert Poiani e disponibilizado pela DIO.
-Referência original em
-[dio-spring-boot-learning-track](https://github.com/digitalinnovationone/dio-spring-boot-learning-track/tree/main/05-spring-ai).
-
-## Introduction
-
-This final module applies Spring AI in a budgeting API while preserving the same layered architecture used across the track.
-
-The goal is to integrate AI capabilities without bypassing domain and use case boundaries.
-
-## Code Context
-
-The project processes voice commands to create and query financial transactions.
-
-Primary flow:
-
-1. Client uploads an audio file.
-2. Audio is transcribed into text.
-3. The model selects an application tool/use case.
-4. The use case persists or queries transaction data.
-5. The final response is converted to audio.
-
-## Project Structure
-
-- `src/main/java/dio/budgeting/domain`
-  - Domain model and repository contract.
-- `src/main/java/dio/budgeting/application`
-  - Use cases used by both REST and AI tool calling.
-- `src/main/java/dio/budgeting/infrastructure`
-  - HTTP adapters, JPA adapters, and integration glue.
-
-## Module-Specific Topics
-
-### Speech-to-text
-
-- Uses `TranscriptionModel` for audio transcription.
-- Model settings are configured in `application.properties`.
-
-### Tool calling
-
-- `ChatClient` registers use-case tools.
-- `@Tool` methods expose business capabilities to the model.
-
-### Text-to-speech
-
-- `TextToSpeechModel` produces MP3 output from final text.
-- AI endpoint returns generated audio.
-
-## Spring AI Documentation
-
-- Spring AI Reference: https://docs.spring.io/spring-ai/reference/index.html
-- ChatModel API: https://docs.spring.io/spring-ai/reference/api/chatmodel.html
-- ChatClient API: https://docs.spring.io/spring-ai/reference/api/chatclient.html
-- Tools API: https://docs.spring.io/spring-ai/reference/api/tools.html
-- Audio Transcriptions API: https://docs.spring.io/spring-ai/reference/api/audio/transcriptions.html
-- Audio Speech API: https://docs.spring.io/spring-ai/reference/api/audio/speech.html
-
-## Shared Architecture References
-
-Common architecture concepts are documented in the root README:
-
-- [DDD layers](../README.md#ddd-layered-architecture)
-- [Class vs record](../README.md#java-class-vs-java-record-in-domain-modeling)
-- [Strong typed identifiers](../README.md#strong-typed-identifiers)
-- [Repository pattern](../README.md#repository-pattern)
-- [Use cases and Clean Architecture](../README.md#use-cases-and-clean-architecture)
-- [Docker Compose support](../README.md#docker-compose-support-in-development)
-
-## How to Run
-
-Set your OpenAI API key:
-
-```bash
-export OPENAI_API_KEY="your_api_key_here"
+```powershell
+docker compose up -d database
+$env:OPENAI_API_KEY = 'SUA_CHAVE_DA_OPENAI'
+.\gradlew.bat bootRun
 ```
 
-Run the application and tests:
+O MySQL usa a porta `3307` do computador. Os exemplos abaixo consideram a API em `http://localhost:8080`.
 
-```bash
-./gradlew bootRun
-./gradlew test
+## Exemplos de uso da API
+
+Com a aplicação em execução, abra outro PowerShell na pasta `05-spring-ai`.
+
+### Criar uma transação
+
+Envie o valor em centavos. O endpoint retorna HTTP 201 com os dados da transação e o valor em reais.
+
+```powershell
+$transaction = @{
+    category = 'GROCERIES'
+    description = 'Compra no mercado'
+    amount = 3590
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -Uri 'http://localhost:8080/transactions' -ContentType 'application/json' -Body $transaction
 ```
 
-## Notes
+Neste exemplo, o campo `amount` da resposta representa `35.90` reais.
 
-- Educational final project focused on AI plus architectural discipline.
-- External provider integration tests may require active credentials.
+### Consultar por categoria
+
+```powershell
+Invoke-RestMethod -Method Get -Uri 'http://localhost:8080/transactions/GROCERIES'
+```
+
+As categorias disponíveis são `GROCERIES`, `PHARMA` e `AUTO`.
+
+### Enviar um comando de voz
+
+O campo multipart deve se chamar `file`. Este exemplo usa um áudio incluído no projeto e salva a resposta como `resposta.mp3`.
+
+```powershell
+curl.exe --fail --show-error --form 'file=@src/test/resources/audio/recording-1.m4a' --output 'resposta.mp3' 'http://localhost:8080/transactions/ai'
+```
+
+**Limite da validação:** os exemplos de API acima são instruções de uso. O fluxo completo com MySQL e OpenAI reais não foi validado nesta evolução; os resultados comprovados são os testes com dependências simuladas.
+
+## Aprendizado
+
+O desenvolvimento e a revisão exercitaram a centralização de regras no caso de uso, o tratamento de erros HTTP, a precisão de valores monetários e o uso de mocks para testar o comportamento da aplicação. Também reforçaram a diferença entre testes isolados e testes de integração.
+
+## Créditos
+
+Projeto-base desenvolvido pelo expert Poiani e disponibilizado pela DIO:
+
+[Repositório original — módulo Spring AI](https://github.com/digitalinnovationone/dio-spring-boot-learning-track/tree/main/05-spring-ai).

@@ -17,6 +17,19 @@ public class PersistTransactionUseCase {
 
     @Tool(name = "persist-transaction", description = "Persiste uma nova transação financeira")
     public TransactionOutput execute(PersistTransactionInput input) {
+        if (input == null) {
+            throw new InvalidTransactionException("Os dados da transação são obrigatórios.");
+        }
+        if (input.description() == null || input.description().isBlank()) {
+            throw new InvalidTransactionException("A descrição é obrigatória.");
+        }
+        if (input.amount() <= 0) {
+            throw new InvalidTransactionException("O valor deve ser maior que zero.");
+        }
+        if (input.category() == null) {
+            throw new InvalidTransactionException("A categoria é obrigatória.");
+        }
+
         var transaction = transactionRepository.save(
                 new Transaction(input.description(), input.amount(), input.category()));
 
